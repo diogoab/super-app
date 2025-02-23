@@ -3,10 +3,11 @@ name: Build and Deploy
 on:
   push:
     branches:
-      - develop
+      - main
   pull_request:
     branches:
-      - develop
+      - main
+
 jobs:
   build_docker_image:
     runs-on: ubuntu-latest
@@ -14,6 +15,20 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 
+
+      # SonarCloud Scan
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=super-app
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}  # Nome da sua organização no SonarCloud
+            -Dsonar.sources=.
+            -Dsonar.exclusions=**/*.test.js
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -34,11 +49,28 @@ jobs:
         run: |
           echo "Building Docker Image..."
           TAG="${{ github.ref_name }}-${{ github.sha }}-${{ github.run_id }}"
-          IMAGE_FULL_NAME="super-app:${TAG}"
+          IMAGE_FULL_NAME="${{ github.repository }}:${TAG}"
           docker build -t $ECR_REPOSITORY_URI/$IMAGE_FULL_NAME .
-          docker push $ECR_REPOSITORY_URI/$IMAGE_FULL_NAME
           echo $IMAGE_FULL_NAME > image_full_name.txt
           echo ${{ github.ref_name }} > target_branch.txt
+
+      # Trivy Scan na imagem Docker
+      - name: Scan Docker Image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "${{ vars.REPOSITORY_URI }}/${{ github.repository }}:${{ github.ref_name }}-${{ github.sha }}-${{ github.run_id }}"
+          format: "table"
+          exit-code: "1"  # Falha o pipeline se vulnerabilidades críticas forem encontradas
+          ignore-unfixed: true  # Ignora vulnerabilidades sem correção disponível
+          vuln-type: "os,library"  # Escaneia pacotes do SO e bibliotecas
+          severity: "CRITICAL,HIGH"  # Falha apenas em vulnerabilidades críticas ou altas
+
+      - name: Push Docker image to ECR
+        env:
+          ECR_REPOSITORY_URI: ${{ vars.REPOSITORY_URI }}
+        run: |
+          IMAGE_FULL_NAME=$(cat image_full_name.txt)
+          docker push $ECR_REPOSITORY_URI/$IMAGE_FULL_NAME
 
       - name: Save artifacts
         uses: actions/upload-artifact@v4
@@ -72,6 +104,9 @@ jobs:
         run: |
           git config --global user.email "rdi.devops"
           git config --global user.name "rdi.devops"
+
+      - name: Install yq
+        run: sudo snap install yq  # Necessário para manipular YAML no próximo passo
 
       - name: Update Kubernetes Deployment
         env:
