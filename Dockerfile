@@ -1,5 +1,5 @@
 # Stage 1: Construção do conteúdo estático (Builder)
-FROM alpine:latest AS builder
+FROM alpine:3.21.3 AS builder
 
 # Cria o diretório de trabalho
 WORKDIR /app
