@@ -20,15 +20,21 @@ jobs:
 
       # SonarCloud Scan
       - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@v4
+        uses: sonarsource/sonarcloud-github-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
             -Dsonar.projectKey=super-app
-            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}  # Nome da sua organização no SonarCloud
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
             -Dsonar.sources=.
             -Dsonar.exclusions=**/*.test.js
+            -Dsonar.branch.name=${{ github.ref_name }}
+      
+      - name: Check SonarCloud Output
+        if: failure()  # Executa apenas se o passo anterior falhar
+        run: |
+          echo "SonarCloud scan falhou. Verifique se o projeto 'super-app' está configurado no SonarCloud e vinculado ao repositório."
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
