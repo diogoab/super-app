@@ -55,7 +55,7 @@ jobs:
         run: |
           echo "Building Docker Image..."
           TAG="${{ github.ref_name }}-${{ github.sha }}-${{ github.run_id }}"
-          IMAGE_FULL_NAME="${{ github.repository }}:${TAG}"
+          IMAGE_FULL_NAME="super-app:${TAG}"
           docker build -t $ECR_REPOSITORY_URI/$IMAGE_FULL_NAME .
           echo $IMAGE_FULL_NAME > image_full_name.txt
           echo ${{ github.ref_name }} > target_branch.txt
@@ -64,12 +64,12 @@ jobs:
       - name: Scan Docker Image with Trivy
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: "${{ vars.REPOSITORY_URI }}/${{ github.repository }}:${{ github.ref_name }}-${{ github.sha }}-${{ github.run_id }}"
+          image-ref: $ECR_REPOSITORY_URI/$IMAGE_FULL_NAME
           format: "table"
-          exit-code: "1"  # Falha o pipeline se vulnerabilidades críticas forem encontradas
-          ignore-unfixed: true  # Ignora vulnerabilidades sem correção disponível
-          vuln-type: "os,library"  # Escaneia pacotes do SO e bibliotecas
-          severity: "CRITICAL,HIGH"  # Falha apenas em vulnerabilidades críticas ou altas
+          exit-code: "1"  # Fail the pipeline if critical vulnerabilities are found
+          ignore-unfixed: true  # Ignores vulnerabilities without available patches
+          vuln-type: "os,library"  # Scans OS packages and libraries
+          severity: "CRITICAL,HIGH"  # Only fails on critical or high vulnerabilities
 
       - name: Push Docker image to ECR
         env:
