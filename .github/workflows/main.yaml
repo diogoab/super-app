@@ -64,7 +64,7 @@ jobs:
       - name: Scan Docker Image with Trivy
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: $ECR_REPOSITORY_URI/$IMAGE_FULL_NAME
+          image-ref: "${{ vars.REPOSITORY_URI }}/super-app:${{ github.ref_name }}-${{ github.sha }}-${{ github.run_id }}"
           format: "table"
           exit-code: "1"  # Fail the pipeline if critical vulnerabilities are found
           ignore-unfixed: true  # Ignores vulnerabilities without available patches
